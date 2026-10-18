@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Elements</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&display=block&subset=latin-ext" rel="stylesheet">
+<style>
+  /* Transparent canvas: these sit on GitHub's own page background, not on paper. */
+  :root { --ink: #1e3557; --wave: #1e3557; --wave-op: .85; --accent: #b04524; }
+  :root[data-theme="dark"] { --ink: #ece2cc; --wave: #6f88b8; --wave-op: 1; --accent: #e2774f; }
+  html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<svg id="c" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+  const q = new URLSearchParams(location.search);
+  const theme = q.get("theme") || "light", kind = q.get("kind") || "divider", title = q.get("title") || "";
+  document.documentElement.dataset.theme = theme;
+  const ns = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs, parent) => {
+    const e = document.createElementNS(ns, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    parent && parent.appendChild(e);
+    return e;
+  };
+  const W = kind === "divider" ? 1280 : 1000, H = kind === "divider" ? 40 : 70;
+  const svg = document.getElementById("c");
+  svg.setAttribute("width", W); svg.setAttribute("height", H); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  document.body.style.width = W + "px"; document.body.style.height = H + "px";
+  const defs = el("defs", {}, svg);
+
+  // Seigaiha drawn into a luminance mask: strokes white (shown), fills black (hide the rows behind),
+  // so the result stays transparent without knowing the page colour.
+  function seigaiha(id, x0, x1, y0, y1, R, fade) {
+    const m = el("mask", { id, maskUnits: "userSpaceOnUse", x: 0, y: 0, width: W, height: H }, defs);
+    const g = el("g", {}, m);
+    const rings = 3;
+    for (let row = 0, y = y0; y < y1 + R; row++, y = y0 + row * R * 0.5) {
+      const off = row % 2 ? R : 0;
+      for (let x = x0 - off; x < x1 + R; x += R * 2) {
+        for (let k = 0; k < rings; k++) {
+          const r = R - k * (R / rings);
+          el("path", {
+            d: `M ${x - r} ${y} A ${r} ${r} 0 0 1 ${x + r} ${y} Z`,
+            fill: k === 0 ? "#000" : "none", stroke: "#fff", "stroke-width": k === 0 ? 1.6 : 1.2,
+          }, g);
+        }
+      }
+    }
+    // Fade: multiply the pattern by a gradient using a second mask on the group.
+    const fm = el("mask", { id: id + "f", maskUnits: "userSpaceOnUse", x: 0, y: 0, width: W, height: H }, defs);
+    const lg = el("linearGradient", { id: id + "g", gradientUnits: "userSpaceOnUse", x1: x0, x2: x1, y1: 0, y2: 0 }, defs);
+    fade.forEach(([o, a]) => el("stop", { offset: o, "stop-color": "#fff", "stop-opacity": a }, lg));
+    el("rect", { x: 0, y: 0, width: W, height: H, fill: `url(#${id}g)` }, fm);
+    const holder = el("g", { mask: `url(#${id}f)` }, svg);
+    el("rect", { x: 0, y: 0, width: W, height: H, fill: "var(--wave)", "fill-opacity": "var(--wave-op)", mask: `url(#${id})` }, holder);
+    return holder;
+  }
+
+  if (kind === "divider") {
+    // A thin band of waves, fading at both ends, broken in the middle by a small vermilion seal.
+    seigaiha("w", 240, 1040, 22, 40, 13, [[0, 0], [.3, 1], [.44, 1], [.47, 0], [.53, 0], [.56, 1], [.7, 1], [1, 0]]);
+    el("rect", { x: 627, y: 7, width: 26, height: 26, rx: 4, fill: "var(--accent)", transform: "rotate(45 640 20)" }, svg);
+    el("rect", { x: 634, y: 14, width: 12, height: 12, rx: 1.5, fill: "none", stroke: theme === "light" ? "#fbf7ee" : "#131e33",
+      "stroke-width": 1.6, transform: "rotate(45 640 20)" }, svg);
+  } else {
+    // Section header: vermilion seal mark, Fraunces title, hairline, waves gathering on the right.
+    el("rect", { x: 2, y: 25, width: 17, height: 17, rx: 3, fill: "var(--accent)", transform: "rotate(-6 10.5 33.5)" }, svg);
+    const t = el("text", { x: 32, y: 44, "font-family": "Fraunces", "font-weight": 600, "font-size": 31, fill: "var(--ink)",
+      "letter-spacing": "-0.4" }, svg);
+    t.textContent = title;
+    // Measure only after Fraunces has loaded, otherwise the hairline starts at the fallback font's width.
+    document.fonts.load('600 31px "Fraunces"').then(() => {
+      const tw = t.getComputedTextLength();
+      el("line", { x1: 32 + tw + 20, x2: 760, y1: 36, y2: 36, stroke: "var(--ink)", "stroke-opacity": .28, "stroke-width": 1.2 }, svg);
+    });
+    seigaiha("w", 700, 1000, 40, 70, 13, [[0, 0], [.45, 1], [1, 1]]);
+  }
+</script>
+</body>
+</html>
